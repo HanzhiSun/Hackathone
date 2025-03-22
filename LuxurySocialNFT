@@ -1,0 +1,81 @@
+//LuxurySocialNFT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+
+contract LuxurySocialNFT is ERC721URIStorage, AccessControl {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    uint256 public nextTokenId;
+
+    struct Post {
+        string brand;
+        string model;
+        string serialNumber;
+        string manufactureDate;
+        bytes32 authHash; // Hashed secret code
+        string caption;
+        uint256 timestamp;
+    }
+
+    mapping(uint256 => Post) public posts;
+
+    constructor() ERC721("LuxurySocialNFT", "LSN") {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender); // You can mint by default
+    }
+
+    function addBrand(address brandAddress) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _grantRole(MINTER_ROLE, brandAddress);
+    }
+
+    function mintPost(
+        address to,
+        string memory brand,
+        string memory model,
+        string memory serialNumber,
+        string memory manufactureDate,
+        string memory authCode,
+        string memory caption,
+        string memory tokenURI
+    ) public onlyRole(MINTER_ROLE) {
+        uint256 tokenId = nextTokenId;
+        nextTokenId++;
+
+        _mint(to, tokenId);
+        _setTokenURI(tokenId, tokenURI);
+
+        posts[tokenId] = Post({
+            brand: brand,
+            model: model,
+            serialNumber: serialNumber,
+            manufactureDate: manufactureDate,
+            authHash: keccak256(abi.encodePacked(authCode)),
+            caption: caption,
+            timestamp: block.timestamp
+        });
+    }
+
+    function verifyAuthCode(uint256 tokenId, string memory code) public view returns (bool) {
+        return posts[tokenId].authHash == keccak256(abi.encodePacked(code));
+    }
+
+    function getPost(uint256 tokenId) public view returns (
+        string memory brand,
+        string memory model,
+        string memory serialNumber,
+        string memory manufactureDate,
+        string memory caption,
+        uint256 timestamp
+    ) {
+        Post memory post = posts[tokenId];
+        return (
+            post.brand,
+            post.model,
+            post.serialNumber,
+            post.manufactureDate,
+            post.caption,
+            post.timestamp
+        );
+    }
+}
